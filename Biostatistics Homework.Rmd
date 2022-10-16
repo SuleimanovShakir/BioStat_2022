@@ -1,0 +1,127 @@
+---
+title: "Biostatistics Homework"
+author: "Suleimanov Shakir"
+date: '2022-10-13'
+output:
+  html_document: default
+  pdf_document: default
+---
+*Подгрузим библиотеку*
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+```
+
+# Задача 1
+
+&nbsp;
+
+**Рассчитаем математическое ожидание и дисперсию числа циклов терапии для дебюта заболевания:**
+M[X] = 1*0.5 + 2*0.5 = 1.5
+D[X] = (1 - 0.5)*0.5 = 0.25
+
+**Рассчитаем математическое ожидание и дисперсию числа циклов терапии для рецидива заболевания:**
+
+M[X] = 2*0.25 + 3*0.75 = 2.75
+D[X] = (1 - 0.25)*0.75 = 0.5625
+
+# Задача 2
+
+&nbsp;
+
+**Построим таблицу распределения общего числа циклов терапии у рецидивировавших пациентов («дебютных» + «рецидивных»)**
+```{r}
+
+three_cycles <- 0.5*0.25
+four_cycles <- 0.5*0.75 + 0.5*0.25
+five_cycles <- 0.5*0.75
+
+num_cycles <- c(three_cycles, four_cycles, five_cycles) %>%
+  round(3) %>% 
+  matrix(ncol = 3) %>% 
+  as.data.frame()
+colnames(num_cycles) <- c(3,4,5)
+rownames(num_cycles) <- "Pr"
+num_cycles
+```
+
+**Рассчитаем математическое ожидание и дисперсию общего числа циклов терапии у рецидивировавших пациентов («дебютных» + «рецидивных»)**
+
+M[X] = 3*0.125 + 4*0.5 + 5*0.375 = 4.25
+D[X] = (3 - 4.25)^2*0.125 + (4 - 4.25)^2*0.5 + (5 - 4.25)^2*0.375 = 0.4375
+
+# Задача 3
+
+&nbsp;
+
+**Создадим таблицу данных, в которую положим значения SE, рассчитанные для соответствующего объема выборки**
+
+
+```{r, echo=FALSE}
+SD = sqrt(0.4375)
+
+vector <- c()
+for (i in c(10:160)){
+  SE = SD / sqrt(i)
+  vector <- append(vector, c(i, SE))
+}
+
+table <- matrix(vector, ncol = 2, byrow = T) %>%
+  as.data.frame()
+colnames(table) <- c("N", "SE")
+head(table)
+```
+
+**Построим график теоретической зависимости стандартной ошибки (SE) при оценке среднего числа циклов от объема выборки N**
+
+```{r}
+ggplot(data = table, aes(x = N, y = SE))+
+  geom_point(size = 2, aes(col = N))+
+  xlab("N, size of the sample")+
+  ylab("SE")+
+  theme(axis.title.y = element_text(size = 16), axis.title.x = element_text(size = 16), axis.text.x = element_text(size=12), axis.text.y = element_text(size = 12), panel.background = element_rect())
+```
+
+# Задача 4
+
+&nbsp;
+
+**Создадим функцию, которая будет считать нужные нам статистики**
+
+```{r}
+all_stat <- function(x){
+  sd <- sd(x)
+  se <- sd / sqrt(length(x))
+  se_SE_ratio <- se / (SD/sqrt(length(x)))
+  return(c(sd, se, se_SE_ratio))
+}
+```
+
+**Создадим выборки с заданным объемом и рассчитаем для них необходимые статистические параметры**
+
+```{r}
+ten_patients <- sample(c(3:5), size = 10, replace = TRUE)
+forty_patients <- sample(c(3:5), size = 40, replace = TRUE)
+onehundredsixty_patients <- sample(c(3:5), size = 160, replace = TRUE)
+
+stat_ten <- all_stat(ten_patients)
+stat_forty <- all_stat(forty_patients)
+stat_onehundredsixty <- all_stat(onehundredsixty_patients)
+```
+
+**Положим данные в таблицу**
+```{r}
+
+stat_table <- c(stat_ten, stat_forty, stat_onehundredsixty) %>%
+  round(3) %>%
+  matrix(ncol = 3, byrow = T) %>%
+  as.data.frame()
+
+colnames(stat_table) <- c("sd", "se", "se/SE")
+rownames(stat_table) <- c("10 patients", "40 patients", "160 patients")
+print(stat_table)
+```
+*Так как se зависит от объема выборки, то его значения будет тем меньше, чем больше выборка. Однако sd принимает абсолютно разные значения независимо от объема выборки. В данном конкретном случае, чем меньше выборка, тем больше sd, однако, если повторить эксперимент еще несколько раз, соотношение может измениться*
