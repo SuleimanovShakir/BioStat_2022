@@ -1,0 +1,246 @@
+---
+title: "Data Visualization HW"
+author: "Shakir Suleimanov"
+date: '2022-10-16'
+output: html_document
+---
+# Подгружаем библиотеки
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggpubr)
+```
+
+# Задание 1. Загружаем данные
+
+```{r}
+insurance <- read.csv("insurance_cost.csv")
+head(insurance)
+```
+
+# Смотрим на данные
+
+
+```{r}
+str(insurance)
+```
+```{r}
+summary(insurance)
+```
+
+# Задание 2
+
+```{r}
+ggplot()+
+  geom_histogram(data = insurance, aes(x = bmi), alpha = 0.9, bins = 12)
+```
+
+
+```{r}
+ggplot()+
+  geom_histogram(data = insurance, aes(x = charges), alpha = 0.9, bins = 15)
+```
+
+```{r}
+ggplot()+
+  geom_histogram(data = insurance, aes(x = age), alpha = 0.9, binwidth = 3)
+```
+
+```{r}
+ggplot()+
+  geom_histogram(data = insurance, aes(x = children), alpha = 0.9, binwidth = 1)
+```
+
+
+# Задание 3
+
+```{r}
+median_charges <- round(median(insurance$charges), 0)
+mean_charges <- round(mean(insurance$charges), 0)
+
+density_charges <- ggplot()+
+  geom_density(data = insurance, aes(x = charges))+
+  geom_vline(aes(xintercept = median_charges), color = "blue")+
+  geom_vline(aes(xintercept = mean_charges), color = "red")+
+  annotate("text", x= median_charges-5500, y =  0.00002, label=paste0("Median=", median_charges), color = "blue")+
+  annotate("text", x= mean_charges+5000, y =  0.00004, label=paste0("Mean=", mean_charges), color = "red")+
+  labs(x = "Сумма страховой выплаты", y = "Частота встречаемости")+
+  theme_linedraw()
+
+density_charges
+```
+
+# Задание 4
+
+```{r}
+boxplot_sex_charges <- ggplot()+
+  geom_boxplot(data = insurance, aes(x = sex, y = charges))+
+  theme_pubclean()+
+  theme(axis.text.x = element_text(size=8))+
+  labs(x = "Пол", y = "Сумма страховой выплаты")
+  
+
+boxplot_smoker_charges <-  ggplot()+
+  geom_boxplot(data = insurance, aes(x = smoker, y = charges))+
+  theme_pubclean()+
+  theme(axis.text.x = element_text(size=8))+
+  labs(x = "Пол", y = "Сумма страховой выплаты")
+
+boxplot_region_charges <- ggplot()+
+  geom_boxplot(data = insurance, aes(x = region, y = charges))+
+  theme_pubclean()+
+  theme(axis.text.x = element_text(size=8))+
+  labs(x = "Пол", y = "Сумма страховой выплаты")
+
+combine_boxplot <- ggarrange(boxplot_sex_charges, boxplot_region_charges, boxplot_smoker_charges,
+                          ncol = 3, nrow = 1, widths = c(1, 1.5, 1))
+
+combine_boxplot
+```
+
+# Задание 5
+
+```{r}
+combine_plot <- ggarrange(density_charges, combine_boxplot, 
+                          ncol = 1, nrow = 2)
+  
+
+combine_plot
+```
+
+# Задание 6
+
+```{r}
+
+ggplot()+
+  geom_density(data = insurance, aes(x = charges))+
+  facet_wrap(vars(region))+
+  labs(x = "Размер страховой выплаты", y = "Частота встречаемости")+
+  theme_linedraw()
+```
+
+# Задание 7-8
+
+```{r}
+ggplot(data = insurance, aes(x = age, y = charges))+
+  geom_point()+
+  geom_smooth(method = lm)+
+  theme_pubclean()+
+  theme(axis.text.x = element_text(size=14), plot.title = element_text(hjust = 0.5))+
+  labs(title = "Возрост vs Сумма страховой выплаты", x = "Возраст", y = "Сумма страховой выплаты")
+
+```
+
+# Задание 9
+
+```{r}
+ggplot(data = insurance, aes(x = age, y = charges, fill = smoker))+
+  geom_point()+
+  geom_smooth(method = lm)+
+  theme_pubclean()+
+  theme(axis.text.x = element_text(size=14), plot.title = element_text(hjust = 0.5))+
+  labs(title = "Возрост vs Сумма страховой выплаты", x = "Возраст", y = "Сумма страховой выплаты")
+```
+
+# Задание 10
+
+```{r}
+ggplot(data = insurance, aes(x = bmi, y = charges))+
+  geom_point()+
+  geom_smooth(method = lm)+
+  theme_pubclean()+
+  theme(axis.text.x = element_text(size=14), plot.title = element_text(hjust = 0.5))+
+  labs(title = "ИМТ vs Сумма страховой выплаты", x = "ИМТ", y = "Сумма страховой выплаты")
+
+ggplot(data = insurance, aes(x = bmi, y = charges, fill = smoker))+
+  geom_point()+
+  geom_smooth(method = lm)+
+  theme_pubclean()+
+  theme(axis.text.x = element_text(size=14), plot.title = element_text(hjust = 0.5))+
+  labs(title = "ИМТ vs Сумма страховой выплаты", x = "ИМТ", y = "Сумма страховой выплаты")
+```
+
+# Задание 11
+
+Вопрос: Влияет ли количество детей индивида на ту сумму, которую страховая компания потратила на индивида в год? Так как нам нужно посмотреть распределение признака в разных группах, и мы точно не знаем параметры выборки (нормальность, гомогенность дисперсий), для оценки отлично подойдет график box plot.
+
+```{r}
+boxplot_children_charges <- ggplot()+
+  geom_boxplot(data = insurance, aes(x = children, y = charges, group = children))+
+  theme_pubclean()+
+  theme(axis.text.x = element_text(size=14), plot.title = element_text(hjust = 0.5))+
+  labs(title = "Отношение страховой суммы индивида к количеству детей", x = "Количество детей", y = "Страховая сумма")
+
+boxplot_children_charges
+```
+
+Ответ: Нет, так как при разбивке индивидов на группы по количеству детей, медиана каждой группы находится на одном уровне.
+
+# Задание 12
+Интересно было бы посмотреть, в какой группе больше курильщиков: в группе женщин или мужчин? Это может быть важно тарификации суммы страховки в зависимости от пола. Для первичной оценки количества элементов в группе подходит график bar chart
+
+```{r}
+
+ggplot()+
+  geom_bar(data = insurance, aes(x = sex, fill = smoker), position = "dodge")+
+  theme_pubclean()+
+  theme(axis.text.x = element_text(size=14), plot.title = element_text(hjust = 0.5))+
+  labs(title = "Распределение курильщиков в зависимости от пола", x = "Пол", y = "Количество курильщиков")
+
+```
+
+Ответ: Мы видим, что в группе мужчин чуть больше курильщиков, но нужно проводить дополнительные тесты для оценки значимости данных различий.
+
+# Задание 13
+
+Так как мы знаем, что медиана страховой выплаты у курильщиков и не курильщиков отличается, проверим статистическую значимость данной разницы. Данная задача является дополнением задачи №4, где мы строили box plot распределения суммы страховых выплат с разбивкой по разным группам. Поэтому здесь я тоже использую box plot. 
+
+```{r}
+charges_smokers <- insurance[insurance$smoker == "yes", ]$charges
+charges_non_smokers <- insurance[insurance$smoker == "no", ]$charges
+
+mann_whitney_smokers <- wilcox.test(charges_smokers, charges_non_smokers)
+
+paste0 ("P-value for Mann-Whitney test is: ", mann_whitney_smokers$p.value)
+```
+Так как эти две группы статистически различаются, посмотрим, отличается ли сумма страховой выплаты курильщиков в разных регионах, чтобы проводить тарификацию суммы страховки в зависимости от региона:
+
+```{r}
+ggplot()+
+  geom_boxplot(data = insurance, aes(x = region, y = charges, fill = smoker))+
+  theme_pubclean()+
+  theme(axis.text.x = element_text(size=14), plot.title = element_text(hjust = 0.5))+
+  labs(title = "Распределение страховой выплаты курильщиков по регионам", x = "Регион", y = "Сумма страховой выплаты")
+
+```
+
+Ответ: На данном графике мы видим, что на курильщиков, проживаюших на юге города, уходит больше денег, чем на курильщиков севера, следовательно, мы можем увеличивать для них сумму страховки.
+
+
+# Задание 14
+
+```{r}
+
+for (i in 1:length(insurance$age)){
+  if (insurance$age[i] <= 34){
+    insurance$age_group[i] = "age: 21-34"
+  } else if (insurance$age[i] >= 50){
+    insurance$age_group[i] = "age: 50+"
+  } else {
+    insurance$age_group[i] = "age: 35-49"
+  }
+}
+```
+
+
+```{r}
+ggplot(data = insurance, aes(x = bmi, y = log(charges), fill = age_group))+
+  geom_point(color = "#6600ff", alpha = 0.4)+
+  facet_wrap(vars(age_group))+
+  geom_smooth(method = lm)+
+  theme_pubclean()+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(title = "Отношение индекса массы тела к логарифму трат по возрастным группам", x = "ИМТ", y = "log(сумма страховых выплат")
+```
+
