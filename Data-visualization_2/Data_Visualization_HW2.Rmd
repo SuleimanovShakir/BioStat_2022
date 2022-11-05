@@ -1,0 +1,303 @@
+---
+title: "Data_viz_HW2"
+author: "Shakir Suleimanov"
+date: '2022-10-25'
+output:
+  html_document:
+    keep_md: TRUE
+    code_folding: show
+    df_print: paged
+    highlight: pygments
+    smooth_scroll: no
+    theme: united
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+    toc_position: right
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggpubr)
+library(plotly)
+library(corrplot)
+library(factoextra)
+library(ggfortify)
+library(pheatmap)
+```
+
+# Download data
+
+```{r}
+insurance <- read.csv("insurance_cost.csv")
+head(insurance)
+```
+
+# Задание 2
+
+```{r}
+plot_ly(
+  data = insurance,
+  x = ~bmi,
+  y = ~charges,
+  color = ~smoker,
+  size = 2
+)
+```
+
+# Задание 3
+
+```{r}
+plot <- ggplot(data = insurance, aes(x = bmi, y = charges, color = smoker))+
+  geom_point(size = 2)
+  
+ggplotly(plot)
+```
+
+# Задание 4
+
+```{r}
+insurance_num <- insurance %>%
+  select(is.numeric | is.integer)
+
+head(insurance_num)
+
+insurance_num_cor <- cor(insurance_num)
+corrplot(insurance_num_cor, method = "pie")
+corrplot(insurance_num_cor, method = "circle")
+```
+
+# Задание 5
+
+1 - male, smoker
+
+```{r}
+insurance_modif <- insurance %>% 
+  mutate(sex = ifelse(sex == "male", 1, 0)) %>%
+  mutate(smoker = ifelse(smoker == "yes", 1, 0)) %>% 
+  mutate(north_west = ifelse(region == "northwest", 1, 0)) %>%
+  mutate(north_east = ifelse(region == "northeast", 1, 0)) %>%
+  mutate(south_west = ifelse(region == "southwest", 1, 0)) %>%
+  mutate(south_east = ifelse(region == "southeast", 1, 0)) %>%
+  select(!region)
+```
+
+# Задание 6
+
+```{r}
+insurance_scaled <- scale(insurance_modif)
+
+insurance_dist <- dist(insurance_scaled, method = "euclidean")
+as.matrix(insurance_dist)[1:6,1:6]
+
+insurance_hc <- hclust(d = insurance_dist, method = "ward.D2")
+
+fviz_dend(insurance_hc, cex = 0.1)
+```
+
+# Задание 8
+
+```{r}
+pheatmap(insurance_scaled)
+```
+
+# Задание 9
+
+```{r}
+insurance_pca <- prcomp(insurance_modif, 
+                scale = T) 
+insurance_pca
+```
+
+```{r}
+insurance_pca$rotation
+summary(insurance_pca)
+```
+
+```{r}
+fviz_eig(insurance_pca, 
+         addlabels = T, 
+         ylim = c(0,25))
+
+fviz_pca_var(insurance_pca, col.var = "contrib")
+```
+
+```{r}
+fviz_contrib(insurance_pca, choice = "var", axes = 1) # 1
+fviz_contrib(insurance_pca, choice = "var", axes = 2, top = 24) # 2
+fviz_contrib(insurance_pca, choice = "var", axes = 3, top = 24) # 3
+```
+
+```{r}
+ggbiplot::ggbiplot(insurance_pca, 
+         scale=0, alpha = 0.1) +
+  theme_minimal()
+
+```
+
+```{r}
+insurance_with_ch <- insurance_modif %>%
+  filter(age != 0 & !is.na(age)) %>%
+  mutate(age_group = case_when(
+    age <= 30 ~ "young age",
+    age > 30 & age <=45 ~ "middle age",
+    age > 45 ~ "old age"
+  ))
+
+insurance_with_ch <- insurance_with_ch %>%
+  filter(age != 0 & !is.na(age)) %>%
+  mutate(smoke_group = case_when(
+    smoker == 0 ~ "non smoker",
+    smoker == 1 ~ "smoker"
+  ))
+
+ggbiplot::ggbiplot(insurance_pca, 
+         scale=0, 
+         groups = as.factor(insurance_with_ch$smoke_group), 
+         ellipse = T,
+         alpha = 0.2) +
+  theme_minimal()
+
+
+ggbiplot::ggbiplot(insurance_pca, 
+         scale=0, 
+         groups = as.factor(insurance_with_ch$age_group), 
+         ellipse = T,
+         alpha = 0.2) +
+  theme_minimal()
+```
+
+# Задание 12
+
+Предположим, что дамми переменные по региону сильно ухудшают результат РСА анализа. Уберем их и проведем РСА без них, посмотрим что получится.
+
+```{r}
+insurance_modif_2 <- insurance_modif %>%
+  select(c(age, sex, bmi, children, smoker, charges))
+
+insurance_pca_2 <- prcomp(insurance_modif_2, 
+                scale = T) 
+insurance_pca_2
+
+insurance_pca_2$rotation
+summary(insurance_pca_2)
+
+fviz_eig(insurance_pca_2, 
+         addlabels = T, 
+         ylim = c(0,25))
+
+fviz_pca_var(insurance_pca_2, col.var = "contrib")
+
+fviz_contrib(insurance_pca_2, choice = "var", axes = 1) # 1
+fviz_contrib(insurance_pca_2, choice = "var", axes = 2, top = 24) # 2
+fviz_contrib(insurance_pca_2, choice = "var", axes = 3, top = 24) # 3
+
+ggbiplot::ggbiplot(insurance_pca_2, 
+         scale=0, alpha = 0.1) +
+  theme_minimal()
+
+ggbiplot::ggbiplot(insurance_pca_2, 
+         scale=0, 
+         groups = as.factor(insurance_with_ch$smoke_group), 
+         ellipse = T,
+         alpha = 0.2) +
+  theme_minimal()
+
+
+ggbiplot::ggbiplot(insurance_pca_2, 
+         scale=0, 
+         groups = as.factor(insurance_with_ch$age_group), 
+         ellipse = T,
+         alpha = 0.2) +
+  theme_minimal()
+```
+
+Результат РСА стал чуть получше. Мы видим, что первые 3 главные компоненты почти покрывают 70% + мы более отчетливо понимаем, какие из наших переменных вносят больший вклад в 1, 2 и 3 главные компоненты. Однако, наши данные до сих пор сильно побиты по smoker. Можно разбить датасет на 2 части и анализировать его отдельно.
+
+# Задание 12.1
+
+Создадим 2 новых датасета
+
+```{r}
+insurance_modif_non_smoker <- insurance_modif %>%
+  filter(smoker == 0) %>%
+  select(c(age, sex, bmi, children, charges))
+  
+insurance_modif_smoker <- insurance_modif %>%
+  filter(smoker == 1) %>%
+  select(c(age, sex, bmi, children, charges))
+```
+
+РСА по некурящим
+
+```{r}
+insurance_pca_non_smoker <- prcomp(insurance_modif_non_smoker, 
+                scale = T) 
+insurance_pca_non_smoker
+
+insurance_pca_non_smoker$rotation
+summary(insurance_pca_non_smoker)
+
+fviz_eig(insurance_pca_non_smoker, 
+         addlabels = T, 
+         ylim = c(0,25))
+
+fviz_pca_var(insurance_pca_non_smoker, col.var = "contrib")
+
+fviz_contrib(insurance_pca_non_smoker, choice = "var", axes = 1) # 1
+fviz_contrib(insurance_pca_non_smoker, choice = "var", axes = 2, top = 24) # 2
+fviz_contrib(insurance_pca_non_smoker, choice = "var", axes = 3, top = 24) # 3
+
+ggbiplot::ggbiplot(insurance_pca_non_smoker, 
+         scale=0, alpha = 0.1) +
+  theme_minimal()
+
+insurance_with_ch_2 <- insurance_with_ch %>%
+  filter(smoker == 0)
+
+ggbiplot::ggbiplot(insurance_pca_non_smoker, 
+         scale=0, 
+         groups = as.factor(insurance_with_ch_2$age_group), 
+         ellipse = T,
+         alpha = 0.2) +
+  theme_minimal()
+```
+
+РСА по курящим
+
+```{r}
+insurance_pca_smoker <- prcomp(insurance_modif_smoker, 
+                scale = T) 
+insurance_pca_smoker
+
+insurance_pca_smoker$rotation
+summary(insurance_pca_smoker)
+
+fviz_eig(insurance_pca_smoker, 
+         addlabels = T, 
+         ylim = c(0,50))
+
+fviz_pca_var(insurance_pca_smoker, col.var = "contrib")
+
+fviz_contrib(insurance_pca_smoker, choice = "var", axes = 1) # 1
+fviz_contrib(insurance_pca_smoker, choice = "var", axes = 2, top = 24) # 2
+fviz_contrib(insurance_pca_smoker, choice = "var", axes = 3, top = 24) # 3
+
+ggbiplot::ggbiplot(insurance_pca_smoker, 
+         scale=0, alpha = 0.1) +
+  theme_minimal()
+
+insurance_with_ch_2 <- insurance_with_ch %>%
+  filter(smoker == 1)
+
+ggbiplot::ggbiplot(insurance_pca_smoker, 
+         scale=0, 
+         groups = as.factor(insurance_with_ch_2$age_group), 
+         ellipse = T,
+         alpha = 0.2) +
+  theme_minimal()
+```
+
+Мы видим, что при разбивке данных на 2 датасета отдельно по курящим и некурящим, у нас изменились направления по нашим переменным относительно главных компонент.
