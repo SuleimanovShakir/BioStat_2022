@@ -1,0 +1,124 @@
+---
+title: "HW_for_Clinical_Diagnostics"
+author: "Shakir Suleimanov"
+date: '2022-11-05'
+output: 
+  html_document:
+    keep_md: TRUE
+    code_folding: show
+    df_print: paged
+    highlight: pygments
+    smooth_scroll: no
+    theme: united
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+    toc_position: right
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+```
+
+# Library
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(pROC)
+library(gtsummary)
+library(readr)
+```
+
+```{r}
+pima <- read.csv("diabetes.csv")
+str(pima)
+```
+
+# Задание 1
+
+```{r}
+pima <- pima %>%
+  filter(Glucose != 0) %>%
+  mutate(Glucose_mg_dl = Glucose / 18)
+
+glucose_intolerance <- sum(pima$Glucose_mg_dl >= 7.8)
+
+glucose_tolerance <- sum(pima$Glucose_mg_dl < 7.8)
+
+cat("Есть НТГ:", glucose_intolerance, ".", "Нет НТГ:", glucose_tolerance)
+```
+
+# Задание 2
+
+```{r}
+pima_filt <- pima %>%
+  filter(BloodPressure != 0 & SkinThickness != 0 & Insulin != 0 & BMI != 0 & DiabetesPedigreeFunction != 0 & Age != 0)
+
+pima_filt %>%
+  tbl_summary(by = Outcome) %>%
+  add_p()
+```
+
+&nbsp;
+
+Анализ ROC-кривых
+
+Проведём ROC-анализ для показателя гликемии
+
+```{r}
+
+roc_curve_gluc <- roc(Outcome ~ Glucose, data = pima_filt, ci = T)
+
+roc_curve_gluc
+
+```
+
+```{r, fig.height= 3, fig.width=3, dpi=300}
+
+ggroc(roc_curve_gluc) + 
+    theme_grey()
+
+```
+
+# Задание 3
+
+```{r}
+roc_curve_gluc$auc
+
+```
+
+# Задание 4
+
+```{r}
+roc_curve_gluc$ci
+```
+
+# Задание 5
+
+Проведём ROC-анализ для показателя инсулина
+
+```{r}
+
+roc_curve_ins <- roc(Outcome ~ Insulin, data = pima_filt, ci = T)
+
+roc_curve_ins
+
+roc_curve_ins %>% coords(x = "best", best.method = "closest.topleft")
+
+```
+
+Показатель инсулина чуть хуже предсказывает сахарный диабет, чем показатель гликемии.
+
+# Задание 6
+
+```{r}
+pima_filt %>%
+  select(!Glucose_mg_dl) %>%
+  pivot_longer(cols = !Outcome) %>%
+  group_by(name) %>%
+  summarise(AUC = roc(Outcome, value)$auc[1])
+```
+
+Мы видим, что наибольшая площадь под ROC-кривой наблюдается для параметра глюкозы, а наименьшая - для давления крови, хотя и для DiabetesPedigreeFunction и для Pregnancies площадь под ROC-кривой практически так же мала.
