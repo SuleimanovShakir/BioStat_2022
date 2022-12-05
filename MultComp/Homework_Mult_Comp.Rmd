@@ -1,0 +1,124 @@
+---
+title: "Homework_Mult_Comp"
+author: "Shakir Suleimanov"
+date: "2022-11-30"
+output:
+  html_document:
+    keep_md: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Установим библиотеки
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+Загрузим данные
+
+```{r}
+soccer_general <- read.csv("soccer.csv", sep=";")[, 2:6] %>% 
+    mutate(Position = as.factor(Position), 
+    Nationality = as.factor(Nationality), 
+    Age = as.numeric(Age), 
+    Height = as.numeric(Height)
+) %>% 
+filter(Nationality %in% c("Spanish", "Italian", "German", "English", "Argentinian"))
+
+set.seed(1) 
+```
+
+Создадим выборку
+
+```{r}
+soccer_wrk <- soccer_general[sample(1:nrow(soccer_general), 150), ] %>% 
+    mutate(Nationality = factor(Nationality))
+```
+
+Посмотрим на распределение изучаемого признака в нашей выборке и "генеральной" совокупности
+
+```{r}
+ggplot_wrk <- ggplot(data = soccer_wrk, aes(x = Position, y = Height))+
+  geom_boxplot()+
+  geom_jitter(alpha = 0.5, size = 3, color = "tomato")+
+  theme_bw()
+
+ggplot_general <- ggplot(data = soccer_general, aes(x = Position, y = Height))+
+  geom_boxplot()+
+  geom_jitter(alpha = 0.4, size = 1, color = "tomato")+
+  theme_bw()
+
+ggarrange(ggplot_general, ggplot_wrk, col = 2)
+```
+
+Посчитаем p-values
+
+```{r, echo = FALSE}
+attach(soccer_wrk)
+pairwise_ttest_work <- pairwise.t.test(Height, Position, p.adjust.method = "none", pool.sd = FALSE)
+pairwise_ttest_work
+```
+
+Посчитаем adjusted p-values методом Холма
+
+```{r}
+pairwise_ttest_work_holm <- pairwise.t.test(Height, Position, p.adjust.method = "holm", pool.sd = FALSE) 
+
+pairwise_ttest_work_holm
+```
+
+Посчитаем adjusted p-values методом Бенжамини-Хохберга
+
+```{r}
+pairwise_ttest_work_BH <- pairwise.t.test(Height, Position, p.adjust.method = "BH", pool.sd = FALSE)
+pairwise_ttest_work_BH
+```
+
+По итогу проведения попарных тестов с разными методами поправки мы не получили каких-либо различий между ними. Из 6 сравниваемых групп в 4 наблюдаются статистически значимые различия, однако добавление поправки не изменило результат. 
+
+
+Попарные доверительные интервалы без поправки
+```{r}
+Defender_height <- soccer_wrk %>% filter(Position == "Defender") %>% pull(Height) 
+Goalkeeper_height <- soccer_wrk %>% filter(Position == "Goalkeeper") %>% pull(Height) 
+Midfielder_height <- soccer_wrk %>% filter(Position == "Midfielder") %>% pull(Height)
+Forward_height <- soccer_wrk %>% filter(Position == "Forward") %>% pull(Height) 
+
+t.test(Defender_height, Goalkeeper_height) %>% with(conf.int)
+t.test(Defender_height, Midfielder_height) %>% with(conf.int)
+t.test(Defender_height, Forward_height) %>% with(conf.int)
+t.test(Goalkeeper_height, Midfielder_height) %>% with(conf.int)
+t.test(Goalkeeper_height, Forward_height) %>% with(conf.int)
+t.test(Midfielder_height, Forward_height) %>% with(conf.int)
+```
+
+Мы видим, что по результатам построения попарных доверительных интервалов, Форварды значимо не отличаются от Защитников и Полузащитников.
+
+Попарные доверительные интервалы с поправкой Бонферрони
+```{r}
+bonferroni_CWER <- 1 - (0.05/6)
+
+t.test(Defender_height, Goalkeeper_height, conf.level = bonferroni_CWER) %>% with(conf.int)
+t.test(Defender_height, Midfielder_height, conf.level = bonferroni_CWER) %>% with(conf.int)
+t.test(Defender_height, Forward_height, conf.level = bonferroni_CWER) %>% with(conf.int)
+t.test(Goalkeeper_height, Midfielder_height, conf.level = bonferroni_CWER) %>% with(conf.int)
+t.test(Goalkeeper_height, Forward_height, conf.level = bonferroni_CWER) %>% with(conf.int)
+t.test(Midfielder_height, Forward_height, conf.level = bonferroni_CWER) %>% with(conf.int)
+```
+Мы видим, что по результатам применения поправки Бонферрони доверительные интервалы стали шире, но также Форварды значимо не отличаются от Защитников и Полузащитников.
+
+Но конечно проще было бы сразу провести ANOVA и Post-hoc анализ и посчитать доверительные интервалы.
+
+```{r}
+aov_result <- aov(Height ~ Position, data = soccer_wrk)
+tukey <- TukeyHSD(aov_result)
+
+par(mar = c(5, 10, 4, 2)+0.1)
+tukey %>% plot(las = 1)
+```
+
+На самом деле мы видим, что Форварды также значимо не отличаются от Защитников и Полузащитников, как и в предыдущих группах доверительных интервалов. 
