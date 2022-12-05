@@ -1,0 +1,87 @@
+---
+title: "Homework_ANOVA"
+author: "Shakir Suleimanov"
+date: "2022-12-05"
+output:
+  html_document:
+    keep_md: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(multcomp)
+```
+
+```{r}
+soccer_general <- read.csv("soccer.csv", sep=";")[, 2:6] %>% 
+    mutate(Position = as.factor(Position), 
+    Nationality = as.factor(Nationality), 
+    Age = as.numeric(Age), 
+    Height = as.numeric(Height)
+) %>% 
+filter(Nationality %in% c("Spanish", "Italian", "German", "English", "Argentinian")) 
+
+set.seed(1) 
+```
+
+```{r}
+soccer_wrk <- soccer_general[sample(1:nrow(soccer_general), 150), ] %>% 
+    mutate(Nationality = factor(Nationality))
+
+```
+
+
+ANOVA
+
+Проводится для того, чтобы понять, есть ли разница между какими-либо исследуемыми группами. По результатам теста мы видим, что разница между группами есть, но мы не знаем, между какими конкретно.
+```{r}
+aov_position <- aov(Height ~ Position, data = soccer_wrk)
+summary(aov_position)
+```
+
+Post-hoc.
+
+Для того, чтобы понять, между какими конкретно группами есть разница в росте, мы проводит post-hoc анализ. Для начала мы проведем попарные сравнения между всеми группами.
+```{r}
+post_hoc_position <- aov_position %>%
+  glht(linfct = mcp(Position = "Tukey")) 
+summary(post_hoc_position)
+
+par(mar = c(5, 10, 4, 2)+0.1)
+plot(post_hoc_position)
+```
+
+Мы получили статистически значимую разницу в четырех попарных сравнениях.
+
+Построим доверительные интервалы для разницы между группами. Так мы сможем чуть лучше понять силу различий между группами, тогда как при проведении попарных сравнений с p-value мы этого получить не смогли. 
+
+```{r}
+post_hoc_position %>% confint()
+```
+Мы получили схожие результаты, что логично:)
+
+
+Теперь проанализируем взаимосвязь роста и страны, за которую играет футболист.
+
+Сначала проведем ANOVA.
+```{r}
+aov_nationality <- aov(Height ~ Nationality, data = soccer_wrk)
+summary(aov_nationality)
+```
+Уже на этом этапе мы видим, что разницы между группами вообще нет. 
+
+В общем виде дальше нет смысла делать Post-hoc анализ. Но для закрепления материала мы его сделаем.
+```{r}
+post_hoc_nationality <- aov_nationality %>%
+  glht(linfct = mcp(Nationality = "Tukey")) 
+
+summary(post_hoc_nationality)
+
+post_hoc_nationality %>% confint()
+```
+В принципе, такого результата мы и ожидали. 
+
