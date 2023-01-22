@@ -1,0 +1,160 @@
+---
+title: "Regression"
+author: "Shakir Suleimanov"
+date: "2023-01-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+Подгрузим библиотеки
+```{r}
+library(tidyverse)
+library(mvtnorm)
+library(glmnet)
+library(ggpubr)
+```
+
+
+## Задание 1.1
+
+
+Создаем переменные
+
+```{r}
+mean_k <- 88.5
+mean_m <- 5.4
+sigma_k <- 13.25
+sigma_m <- 1.45
+rho <- 0.6
+
+```
+
+
+Создаем выборку 
+
+```{r}
+sigma_cov <- matrix(c(sigma_k^2, rho*sigma_k*sigma_m, rho*sigma_k*sigma_m, sigma_m^2), ncol = 2)
+
+set.seed(100)
+S <- as.data.frame(rmvnorm(n = 100, mean = c(mean_k, mean_m), sigma = sigma_cov))
+colnames(S) <- c("k", "m")
+
+plot(S)
+```
+
+
+Построим модель линейной регрессии, подчиняющейся функции Y = aX + b + epsilon 
+
+Изобразим нашу модель с помощью ggplot и выведем коэффициенты a и b
+
+
+```{r}
+model <- lm(k ~ m, S)
+summary(model)
+
+ggplot(S, aes (m, k)) +
+  geom_point() +
+  geom_smooth(method='lm') +
+  stat_regline_equation()
+```
+
+
+
+Теперь рассчитаем коэффициенты a и b по формулам и оценим взаимосвязь оценок с характеристиками выборки S.
+
+a = cov(k*m)/var(m) = cor(k*m)*sd(k)/sd(m)
+b = mean(k) - a*mean(m)
+
+
+```{r}
+
+a <- cor(S$k, S$m)*sd(S$k)/sd(S$m)
+b <- mean(S$k) - a*mean(S$m)
+
+pred_coef_model <- as.data.frame(matrix(c(a, b), ncol =2))
+colnames(pred_coef_model) <- c("a", "b")
+pred_coef_model
+
+```
+
+Таким образом, мы получили коэффициенты a и b равные  4.1 и 64.1, которые равны рассчитанным по формулам коэффициентам
+
+
+## Задание 1.2
+
+Проверка нормальности распределения остатков:
+
+```{r}
+model_resid <- resid(model)
+
+shapiro_wilk_test_p <- shapiro.test(model_resid)$p.value
+cat("Shapiro-Wilk test result is", shapiro_wilk_test_p)
+```
+
+```{r}
+kolmogorov_smirnov_test_p <- ks.test(model_resid, "pnorm", mean(model_resid), sd(model_resid))$p.value
+cat("Kolmogorov-Smirnov test result is", kolmogorov_smirnov_test_p)
+```
+
+В данном тесте за гипотезу Н0 принимается та, что распределение остатков в модели нормально. Так как при 5% уровне значимости мы получаем значение p-value, сильно выше порогового уровня, необходимого для опровержения гипотезы, то опровергнуть мы ее не можем. Следовательно, считаем, что распределение остатков в модели нормальное. 
+
+
+## Задание 1.3
+
+Создадим выборку W размером 100
+
+```{r}
+
+set.seed(100)
+
+W <- rnorm(100, 50, 5)
+
+S <- S %>%
+  mutate(w = W)
+
+model_w <- lm(k ~ m + w, S)
+summary(model_w)
+```
+
+Мы видим, что параметры R и adjusted R не изменились
+
+## Задание 3
+
+```{r}
+set.seed(200)
+Ly <- round(rnorm(201, 20, 5), digits = 3)
+Neu <- round(rnorm(201, 80, 5), digits = 3)
+
+S2 <- as.data.frame(matrix(c(Neu, Ly), ncol = 2))
+colnames(S2) <- c("Neu", "Ly")
+
+S2 <- S2 %>% 
+  mutate(NLR = round(Neu/Ly, digits = 3)) %>%
+  mutate(Prob_Sepsis = case_when(NLR < 3 ~ 0,
+                            NLR >= 3 & NLR <= 9 ~ (NLR - 3)/6, 
+                            NLR > 9 ~ 1) %>% round(digits = 3)) %>%
+  mutate(Sepsis = rbinom(201, 1, Prob_Sepsis))
+
+S2
+
+sepsis_model <- glm(Sepsis ~ Ly + Neu, family = "binomial", data = S2)
+summary(sepsis_model)
+```
+
+
+Сначала рассчитаем вероятность сепсиса по формуле (NLR-3)/6.
+При Neu = 90 и Leu = 15, NLR = 6, что говорит об однозначности сепсиса
+
+Теперь используем функцию predict()
+
+```{r}
+prediction <- predict(sepsis_model, data.frame(Neu = 90, Ly = 15), type = "response")
+prediction
+```
+
+
